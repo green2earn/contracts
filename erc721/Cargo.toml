@@ -1,7 +1,7 @@
 [package]
-name = "erc721"
+name = "green-nft"
 version = "4.0.0"
-authors = ["Parity Technologies <admin@parity.io>"]
+authors = ["DuongHB <duonghb53@gmail.com>"]
 edition = "2021"
 publish = false
 
