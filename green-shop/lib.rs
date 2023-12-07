@@ -2,48 +2,44 @@
 
 #[ink::contract]
 mod green_shop {
-    /// We import the generated `ContractRef` of our other contract.
-    ///
-    /// Note that the other contract must have re-exported it (`pub use
-    /// GreenTokenContract`) for us to have access to it.
     use ink::env::{
         call::{build_call, ExecutionInput, Selector},
         CallFlags, DefaultEnvironment,
     };
+
+    /// A token ID.
+    pub type TokenId = u32;
 
     /// Event emitted when a token mint occurs.
     #[ink(event)]
     pub struct GreenShopMinted {
         to: AccountId,
         value: Balance,
+        token_id: TokenId,
     }
 
     #[ink(storage)]
     pub struct GreenShopContractCaller {
-        /// We specify that our contract will store a reference to the `OtherContract`.
         green_token: AccountId,
+        green_nft: AccountId,
+        token_id: TokenId,
     }
 
     impl GreenShopContractCaller {
-        /// In order to use the `OtherContract` we first need to **instantiate** it.
-        ///
-        /// To do this we will use the uploaded `code_hash` of `OtherContract`.
         #[ink(constructor)]
-        pub fn new(green_token: AccountId) -> Self {
-            // let green_token = GreenTokenRef::new(10000)
-            //     .code_hash(green_token_contract_code_hash)
-            //     .endowment(0)
-            //     .salt_bytes([0xDE, 0xAD, 0xBE, 0xEF])
-            //     .instantiate();
-
-            Self { green_token }
+        pub fn new(green_token: AccountId, green_nft: AccountId) -> Self {
+            Self {
+                green_token,
+                green_nft,
+                token_id: 0,
+            }
         }
 
         #[ink(message)]
         pub fn mint_token(&mut self, to: AccountId, value: Balance) -> Result<(), ink::LangError> {
-            //self.green_token.mint(to, value);
+            //Mint token
             let selector: Selector = Selector::new(ink::selector_bytes!("mint"));
-            let result = build_call::<DefaultEnvironment>()
+            let _ = build_call::<DefaultEnvironment>()
                 .call(self.green_token)
                 // .gas_limit(5000)
                 // .transferred_value(0)
@@ -56,9 +52,26 @@ mod green_shop {
                 .returns::<()>()
                 .try_invoke();
 
-            ink::env::debug_println!("got a call from {:?}", result);
+            // Mint NFT
+            self.token_id += 1;
+            let result = build_call::<DefaultEnvironment>()
+                .call(self.green_nft)
+                // .gas_limit(5000)
+                // .transferred_value(0)
+                // .call_flags(CallFlags::default().set_tail_call(true))
+                .exec_input(
+                    ExecutionInput::new(selector)
+                        .push_arg(self.token_id)
+                        .push_arg(to),
+                )
+                .returns::<()>()
+                .try_invoke();
 
-            self.env().emit_event(GreenShopMinted { to, value });
+            self.env().emit_event(GreenShopMinted {
+                to,
+                value,
+                token_id: self.token_id,
+            });
             result.unwrap()
         }
     }
